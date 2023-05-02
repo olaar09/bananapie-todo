@@ -1,9 +1,16 @@
 <script setup lang="ts">
+const auth = usePersistentAuth();
+
+//middlewares
+definePageMeta({
+  middleware: 'notauthenticated'
+})
+
 // properties
 const page = ref(1)
 const limit = 10;
-const newTodo = ref("");
-
+const showModal = ref(false);
+const modal = ref(null)
 
 const todoItems = computed({
   get() {
@@ -32,8 +39,7 @@ const skip = computed({
 
 const { data: todos, pending, refresh, error } = await useAsyncData(
   "todos_key",
-  () => $fetch(`https://dummyjson.com/todos?limit=${limit}&skip=${skip.value}`),
-
+  () => $fetch(`https://dummyjson.com/todos?limit=${limit}&skip=${skip.value}`, { method: "GET", headers: { 'Authorization': `Bearer ${auth.value.token}` } }),
 )
 
 console.log(todoItems.value, totalPages.value, error.value, "kfmdeskmfekd");
@@ -49,7 +55,7 @@ function onPagination(direction: String) {
     next();
   } else {
     console.log(direction.toLocaleLowerCase(), page.value, totalPages.value);
-    alert(`unable to navigate`);
+    alert(`End of pagination`);
   }
 }
 
@@ -63,23 +69,40 @@ function next() {
   refresh()
 }
 
-async function addTodo(event: Event) {
+async function addTodo(newTodo: any) {
+  console.log(`${newTodo.name} ${newTodo.description}`)
   const response = await $fetch('https://dummyjson.com/todos/add', {
     headers: { 'Content-Type': 'application/json' },
     method: "POST", body: {
-      todo: newTodo.value,
+      todo: newTodo.name,
+      description: newTodo.description,
       completed: false,
       userId: 5,
     }
   });
-  newTodo.value = "";
+  showModal.value = false;
 
-  refresh();
-  alert(`New todo: ${newTodo.value} - added successfully`);
+  page.value = 1;
+  modal.value.todoName = '';
+  modal.value.todoDescription = '';
+  alert("New todo saved")
+  //refresh();
+  todoItems.value.unshift({ id: 5, todo: newTodo.name, description: newTodo.description, completed: false, userId: 31, })
 }
 
-function removeTodo(params: any) {
-  alert("removed");
+function removeTodo(index: number) {
+  todoItems.value.splice(index, 1)
+  alert("Todo removed")
+}
+
+function removeCompleted(index: number) {
+  todoItems.value.splice(index, 1)
+  alert("Todo completed")
+}
+
+async function logout() {
+  auth.value = undefined;
+  await navigateTo('/login')
 }
 
 </script>
@@ -87,47 +110,48 @@ function removeTodo(params: any) {
 <template>
   <div>
     <div class="mx-auto w-6/12">
-      <header class="shadow-md border-2 border-gray-100 bg-white p-5 my-5">
+      <div class="my-5 justify-between flex">
+        <span>{{ `${auth.firstName} ${auth.lastName}` }}</span>
+        <a @click.prevent="logout" class="underline cursor-pointer">Logout</a>
+      </div>
+      <header class="shadow-md border-2 border-gray-100 bg-white p-5 mb-5">
         <div class="flex justify-between items-center">
           <h1 class="text-3xl font-bold">Todo APP</h1>
           <h1 class="text-xl font-normal text-red-400">{{ `Page ${page} of ${totalPages}` }}</h1>
         </div>
       </header>
     </div>
-
-
-    <!-- <form @submit.prevent="addTodo">
-      <div class="gap-x-2 flex mx-auto w-6/12">
-        <input class="border-2 p-2 w-9/12 rounded shadow border-gray-400 h-14" v-model="newTodo">
-      </div>
-
-    </form> -->
   </div>
 
   <div class="mt-10 w-6/12 mx-auto">
-    <ul>
-      <li v-for="todo in todoItems" :key="todo.id">
+    <NewTodoModal ref="modal" @todo-submitted="addTodo" @close-modal="() => showModal = false" v-show="showModal" />
+
+    <ul class="mb-40">
+      <li v-for="(  todo, index  ) in   todoItems  " :key="todo.id">
         <div class="flex justify-between my-4 bg-gray-200 rounded p-4">
-          {{ todo.todo }}
+          <div>
+            <span class="font-bold">{{ todo.todo }}</span>
+            <div>{{ todo.description }}</div>
+          </div>
           <div class="flex gap-x-2 items-center">
-            <button @click="removeTodo(todo)">
+            <button @click="() => removeCompleted(index)">
               <img class="w-4 h-4 " src="~assets/img/check-mark.png" />
             </button>
-            <button @click="removeTodo(todo)">
+            <button @click="() => removeTodo(index)">
               <img class="w-4 h-4" src="~assets/img/delete.png" />
             </button>
           </div>
-
         </div>
 
       </li>
     </ul>
-    <div class="flex  my-6 fixed bottom-[-2.5%] left-0 right-0">
+    <div v-if="!showModal" class="flex  my-6 fixed bottom-[-2.5%] left-0 right-0">
       <div class=" bg-white mx-auto w-6/12 flex justify-between rounded-lg shadow p-4 items-center">
         <CircleButton btn-icon="left-arrow.png" class="bg-green-500 font-bold p-3" @button-tap="onPagination"
           name="Previous">
         </CircleButton>
-        <CircleButton btn-icon="plus.png" name="Add Todo" class="bg-green-500 rounded p-3"></CircleButton>
+        <CircleButton @button-tap="() => showModal = true" btn-icon="plus.png" name="Add Todo"
+          class="bg-green-500 rounded p-3"></CircleButton>
         <CircleButton btn-icon="right-arrow.png" class="bg-green-500 font-bold p-3" @button-tap="onPagination"
           name="Next">
         </CircleButton>

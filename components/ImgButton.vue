@@ -1,6 +1,6 @@
 <template>
-    <button @click="btnTapped" class="shadow-md bg-green-400 text-center">
-        {{ name }}
+    <button @click="btnTapped" class="shadow-md flex">
+        <img class="w-8 h-8" :src="`/img/${btnIcon}`" />
     </button>
 </template>
 
@@ -8,6 +8,7 @@
 export default {
     props: {
         name: String,
+        btnIcon: String,
         isActive: Boolean
     },
 

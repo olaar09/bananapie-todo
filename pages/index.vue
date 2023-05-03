@@ -78,8 +78,8 @@ async function addTodo(newTodo: TodoItem) {
 }
 
 async function updateTodo(todoItem: TodoItem) {
-  if (!todoItem.todo || !todoItem.description) {
-    alert('Please complete all input fields');
+  if (!todoItem.todo) {
+    alert('Please enter the todo name');
     return;
   }
   const response = await useAppPut<TodoItem | String>(`${API_PATHS.getTodos}/${todoItem.id}`, {

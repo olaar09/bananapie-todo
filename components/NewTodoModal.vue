@@ -36,7 +36,7 @@ export default {
 
     methods: {
         onSubmit() {
-            this.$emit('todoSubmitted', { name: this.todoName, description: this.todoDescription })
+            this.$emit('todoSubmitted', { todo: this.todoName, description: this.todoDescription })
         }
     }
 }

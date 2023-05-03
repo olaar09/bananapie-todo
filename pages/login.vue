@@ -29,6 +29,8 @@
 </template>
 
 <script setup lang="ts">
+import { CookieRef } from 'nuxt/app'
+
 useHead({
     title: 'Login | TODO App'
 })
@@ -38,39 +40,28 @@ definePageMeta({
     middleware: 'authenticated'
 })
 
-const user = ref(null)
 const loading = ref(false)
-const authError = ref('')
-const email = ref('')
-const password = ref('')
+const email = ref<String | undefined>('')
+const password = ref<String | undefined>('')
 
-
-watchEffect(async () => {
-    if (user.value) {
-        await navigateTo('/')
-    }
-});
 
 const login = async () => {
-    console.log(email.value, password.value);
-
     loading.value = true
-    const response = await $fetch('https://dummyjson.com/auth/login', {
-        headers: { 'Content-Type': 'application/json' },
-        method: "POST",
-        body: JSON.stringify({
-            username: email.value,
-            password: password.value,
-            // username: 'kminchelle',
-            // password: '0lelplR',
-        })
-    });
 
-    const auth = usePersistentAuth();
-    auth.value = response;
-    await navigateTo('/');
+    const response = await useAppPost<UserObj | String>(API_PATHS.login, {
+        username: email.value,
+        password: password.value,
+        // username: 'kminchelle',
+        // password: '0lelplR',
+    })
+
+    loading.value = false;
+    const auth: CookieRef<UserObj | String> = usePersistentAuth();
+    if (typeof auth.value == "string") {
+        alert(auth);
+    } else {
+        auth.value = response;
+        await navigateTo('/');
+    }
 }
-const clearError = () => {
-    authError.value = '';
-};
 </script>

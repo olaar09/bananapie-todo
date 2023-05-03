@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const auth = usePersistentAuth();
+import { CookieRef } from 'nuxt/app';
 
 //middlewares
 definePageMeta({
@@ -7,55 +7,39 @@ definePageMeta({
 })
 
 // properties
-const page = ref(1)
-const limit = 10;
-const showModal = ref(false);
-const modal = ref(null)
+const auth: CookieRef<UserObj | undefined> = usePersistentAuth();
+const page = ref<number>(1)
+const limit: number = 10;
+const showModal = ref<Boolean>(false);
+const modal = ref<any>(null)
 
-const todoItems = computed({
-  get() {
-    return todos.value.todos
-  },
-  set(val) { },
-});
+const todoItems = computed<Array<TodoItem> | undefined>(() => todos.value?.todos)
 
-const totalPages = computed({
-  get() {
-    if (todos.value.total > limit) {
-      return Math.ceil(todos.value.total / limit);
-    } else {
-      return 1;
-    }
-  },
-  set(val) { },
+const totalPages = computed<number>(() => {
+  if (todos.value && todos.value!.total > limit) {
+    return Math.ceil(todos.value!.total / limit);
+  } else {
+    return 1;
+  }
 })
 
-const skip = computed({
-  get() {
-    return (page.value - 1) * limit;
-  },
-  set(val) { },
-})
+const skip = computed<number>(() => (page.value - 1) * limit);
 
-const { data: todos, pending, refresh, error } = await useAsyncData(
+const { data: todos, refresh, error } = await useAsyncData<TodoResponseObj>(
   "todos_key",
-  () => $fetch(`https://dummyjson.com/todos?limit=${limit}&skip=${skip.value}`, { method: "GET", headers: { 'Authorization': `Bearer ${auth.value.token}` } }),
+  () => useAppGet<TodoResponseObj>(`${API_PATHS.getTodos}?limit=${limit}&skip=${skip.value}`),
 )
-
-console.log(todoItems.value, totalPages.value, error.value, "kfmdeskmfekd");
-
-
 
 
 // methods
 function onPagination(direction: String) {
-  if (direction.toLocaleLowerCase() == "previous" && page.value > 1) {
+  if (direction.toLocaleLowerCase() == PAGE_PREVIOUS.toLowerCase() && page.value > 1) {
     previous();
-  } else if (direction.toLocaleLowerCase() == "next" && page.value < totalPages.value) {
+  } else if (direction.toLocaleLowerCase() == PAGE_NEXT.toLocaleLowerCase() && page.value < totalPages.value) {
     next();
   } else {
     console.log(direction.toLocaleLowerCase(), page.value, totalPages.value);
-    alert(`End of pagination`);
+    alert(PAGE_END);
   }
 }
 
@@ -69,34 +53,41 @@ function next() {
   refresh()
 }
 
-async function addTodo(newTodo: any) {
-  console.log(`${newTodo.name} ${newTodo.description}`)
-  const response = await $fetch('https://dummyjson.com/todos/add', {
-    headers: { 'Content-Type': 'application/json' },
-    method: "POST", body: {
-      todo: newTodo.name,
-      description: newTodo.description,
-      completed: false,
-      userId: 5,
-    }
-  });
+function resetTodo() {
   showModal.value = false;
-
   page.value = 1;
-  modal.value.todoName = '';
-  modal.value.todoDescription = '';
-  alert("New todo saved")
-  //refresh();
-  todoItems.value.unshift({ id: 5, todo: newTodo.name, description: newTodo.description, completed: false, userId: 31, })
+  modal.value!.todoName = '';
+  modal.value!.todoDescription = '';
+}
+
+async function addTodo(newTodo: TodoItem) {
+  const response = await useAppPost<TodoItem | String>(API_PATHS.addTodo, {
+    todo: newTodo.todo,
+    description: newTodo.description,
+    completed: false,
+    userId: auth.value!.id,
+  })
+
+  // if an error message
+  if (typeof response == "string") {
+    alert(response);
+  } else {
+    alert(TODO_SAVED)
+    resetTodo();
+    //refresh();
+    todoItems.value?.unshift({ id: 5, todo: newTodo.todo, description: newTodo.description, completed: false, userId: auth.value!.id, })
+  }
+
+
 }
 
 function removeTodo(index: number) {
-  todoItems.value.splice(index, 1)
+  todoItems.value!.splice(index, 1)
   alert("Todo removed")
 }
 
 function removeCompleted(index: number) {
-  todoItems.value.splice(index, 1)
+  todoItems.value!.splice(index, 1)
   alert("Todo completed")
 }
 
@@ -111,7 +102,7 @@ async function logout() {
   <div>
     <div class="mx-auto w-6/12">
       <div class="my-5 justify-between flex">
-        <span>{{ `${auth.firstName} ${auth.lastName}` }}</span>
+        <span>{{ `${auth!.firstName} ${auth!.lastName}` }}</span>
         <a @click.prevent="logout" class="underline cursor-pointer">Logout</a>
       </div>
       <header class="shadow-md border-2 border-gray-100 bg-white p-5 mb-5">

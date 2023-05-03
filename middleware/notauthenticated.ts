@@ -1,8 +1,8 @@
-export default defineNuxtRouteMiddleware((to, from) => {
-  const auth = usePersistentAuth();
-  console.log(auth.value, "mioddle ware");
-  
-  if (!auth?.value?.token) {
-    return navigateTo('/login')
+import { CookieRef } from "nuxt/app";
+
+export default defineNuxtRouteMiddleware(() => {
+  const auth: CookieRef<UserObj | undefined> = usePersistentAuth();
+  if (auth && !auth?.value?.token) {
+    return navigateTo("/login");
   }
-})
+});

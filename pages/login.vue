@@ -47,7 +47,10 @@ const password = ref<String | undefined>('')
 
 const login = async () => {
     loading.value = true
-
+    if (!email.value || !password.value) {
+        alert('Please complete all input fields');
+        return;
+    }
     const response = await useAppPost<UserObj | String>(API_PATHS.login, {
         username: email.value,
         password: password.value,

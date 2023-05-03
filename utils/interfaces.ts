@@ -1,19 +1,19 @@
 interface UserObj {
-  token: String;
-  firstName: String;
-  lastName: String;
-  gender: String;
-  image: String;
-  username: String;
-  email: String;
+  token: string;
+  firstName: string;
+  lastName: string;
+  gender: string;
+  image: string;
+  username: string;
+  email: string;
   id: number;
 }
 
 interface TodoItem {
   id: number;
-  todo: String;
+  todo: string;
   completed: Boolean;
-  description: String | undefined;
+  description: string | undefined;
   userId: number;
 }
 

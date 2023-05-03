@@ -5,5 +5,5 @@ export const PAGE_END = "End of pagination";
 export const API_PATHS = {
   getTodos: "/todos",
   addTodo: "/todos/add",
-  login: "/auth/login"
+  login: "/auth/login",
 };

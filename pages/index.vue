@@ -10,8 +10,8 @@ definePageMeta({
 const auth: CookieRef<UserObj | undefined> = usePersistentAuth();
 const page = ref<number>(1)
 const limit: number = 10;
-const showModal = ref<Boolean>(false);
-const modal = ref<any>(null)
+const showAddTodoModal = ref<Boolean>(false);
+const updatingTodoItem = ref<TodoItem | undefined>(undefined);
 
 const todoItems = computed<Array<TodoItem> | undefined>(() => todos.value?.todos)
 
@@ -53,42 +53,57 @@ function next() {
   refresh()
 }
 
-function resetTodo() {
-  showModal.value = false;
-  page.value = 1;
-  modal.value!.todoName = '';
-  modal.value!.todoDescription = '';
-}
-
 async function addTodo(newTodo: TodoItem) {
+  if (!newTodo.todo || !newTodo.description) {
+    alert('Please complete all input fields');
+    return;
+  }
   const response = await useAppPost<TodoItem | String>(API_PATHS.addTodo, {
     todo: newTodo.todo,
     description: newTodo.description,
     completed: false,
     userId: auth.value!.id,
   })
-
   // if an error message
   if (typeof response == "string") {
     alert(response);
   } else {
+    showAddTodoModal.value = false;
+    page.value = 1;
     alert(TODO_SAVED)
-    resetTodo();
+
     //refresh();
     todoItems.value?.unshift({ id: 5, todo: newTodo.todo, description: newTodo.description, completed: false, userId: auth.value!.id, })
   }
-
-
 }
 
-function removeTodo(index: number) {
-  todoItems.value!.splice(index, 1)
-  alert("Todo removed")
-}
+async function updateTodo(todoItem: TodoItem) {
+  if (!todoItem.todo || !todoItem.description) {
+    alert('Please complete all input fields');
+    return;
+  }
+  const response = await useAppPut<TodoItem | String>(`${API_PATHS.getTodos}/${todoItem.id}`, {
+    todo: todoItem.todo,
+    description: todoItem.description,
+    userId: auth.value!.id,
+  })
+  // if an error message
+  if (typeof response == "string") {
+    alert(response);
+  } else {
 
-function removeCompleted(index: number) {
-  todoItems.value!.splice(index, 1)
-  alert("Todo completed")
+
+    updatingTodoItem.value = undefined;
+    const itemIndex = todoItems.value!.findIndex((item, index) => item.id == todoItem.id)
+    todoItems.value![itemIndex] = todoItem;
+
+    if (todoItem.completed) {
+      todoItems.value!.splice(itemIndex, 1)
+      alert("Todo completed")
+    } else {
+      alert(TODO_SAVED)
+    }
+  }
 }
 
 async function logout() {
@@ -115,37 +130,50 @@ async function logout() {
   </div>
 
   <div class="mt-10 w-6/12 mx-auto">
-    <NewTodoModal ref="modal" @todo-submitted="addTodo" @close-modal="() => showModal = false" v-show="showModal" />
+    <NewTodoModal @todo-submitted="addTodo" @close-modal="() => showAddTodoModal = false" v-if="showAddTodoModal" />
 
-    <ul class="mb-40">
-      <li v-for="(  todo, index  ) in   todoItems  " :key="todo.id">
-        <div class="flex justify-between my-4 bg-gray-200 rounded p-4">
-          <div>
-            <span class="font-bold">{{ todo.todo }}</span>
-            <div>{{ todo.description }}</div>
+    <UpdateTodoModal :todo-id-prop="updatingTodoItem.id" :todo-description-prop="updatingTodoItem.description"
+      :todo-name-prop="updatingTodoItem.todo" v-if="updatingTodoItem" @todo-updated="updateTodo"
+      @close-modal="() => updatingTodoItem = undefined" />
+
+    <p v-if="error && error.message" class="flex flex-col my-2 items-center justify-center py-2 mb-3">
+      <span>Could not load the todo list</span>
+      <span class="my-3"> {{ error.message }} </span>
+    </p>
+    <div v-else>
+      <ul class="mb-40">
+        <li v-for="(  todo, index  ) in   todoItems  " :key="todo.id">
+          <div class="flex justify-between my-4 bg-gray-200 rounded p-4">
+            <div>
+              <span class="font-bold">{{ todo.todo }}</span>
+              <div>{{ todo.description }}</div>
+            </div>
+            <div class="flex gap-x-2 items-center">
+              <button @click="() => updatingTodoItem = todo">
+                <img class="w-4 h-4 " src="~assets/img/pencil.png" />
+              </button>
+              <button @click="() => updateTodo({ ...todo, completed: true })">
+                <img class="w-4 h-4 " src="~assets/img/check-mark.png" />
+              </button>
+              <button @click="() => updateTodo({ ...todo, completed: true })">
+                <img class="w-4 h-4" src="~assets/img/delete.png" />
+              </button>
+            </div>
           </div>
-          <div class="flex gap-x-2 items-center">
-            <button @click="() => removeCompleted(index)">
-              <img class="w-4 h-4 " src="~assets/img/check-mark.png" />
-            </button>
-            <button @click="() => removeTodo(index)">
-              <img class="w-4 h-4" src="~assets/img/delete.png" />
-            </button>
-          </div>
+
+        </li>
+      </ul>
+      <div v-if="!showAddTodoModal && !updatingTodoItem" class="flex  my-6 fixed bottom-[-2.5%] left-0 right-0">
+        <div class=" bg-white mx-auto w-6/12 flex justify-between rounded-lg shadow p-4 items-center">
+          <CircleButton btn-icon="left-arrow.png" class="bg-green-500 font-bold p-3" @button-tap="onPagination"
+            name="Previous">
+          </CircleButton>
+          <CircleButton @button-tap="() => showAddTodoModal = true" btn-icon="plus.png" name="Add Todo"
+            class="bg-green-500 rounded p-3"></CircleButton>
+          <CircleButton btn-icon="right-arrow.png" class="bg-green-500 font-bold p-3" @button-tap="onPagination"
+            name="Next">
+          </CircleButton>
         </div>
-
-      </li>
-    </ul>
-    <div v-if="!showModal" class="flex  my-6 fixed bottom-[-2.5%] left-0 right-0">
-      <div class=" bg-white mx-auto w-6/12 flex justify-between rounded-lg shadow p-4 items-center">
-        <CircleButton btn-icon="left-arrow.png" class="bg-green-500 font-bold p-3" @button-tap="onPagination"
-          name="Previous">
-        </CircleButton>
-        <CircleButton @button-tap="() => showModal = true" btn-icon="plus.png" name="Add Todo"
-          class="bg-green-500 rounded p-3"></CircleButton>
-        <CircleButton btn-icon="right-arrow.png" class="bg-green-500 font-bold p-3" @button-tap="onPagination"
-          name="Next">
-        </CircleButton>
       </div>
     </div>
   </div>
